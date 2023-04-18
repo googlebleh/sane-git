@@ -6,8 +6,8 @@
 # Contributor: Pellegrino Prevete <pellegrinoprevete@gmail.com>
 
 pkgname=sane-git
-pkgver=20210131.678495f59
-pkgrel=2
+pkgver=20230416.b171aa7d8
+pkgrel=1
 pkgdesc="Scanner Access Now Easy"
 url="http://www.sane-project.org/"
 arch=('i686' 'x86_64' 'aarch64' 'armv7h')
@@ -20,16 +20,22 @@ conflicts=("${pkgname%-git}")
 source=('git+https://gitlab.com/sane-project/backends.git'
         'sane.xinetd'
         'saned.socket'
-        'saned.service')
+        'saned.service'
+        'escl-fix-job.patch')
 
 sha256sums=('SKIP'
             '9d288d4fef0833da31ca1f1e9b4e567f81a4c03219af3b496d3fc3b6aac394eb'
             'c06fdd54128b06efbf8fbcb40b145512fa8e8a1c470c5cb60abc839a6002fdf1'
-            '9e5274b0184249aaf1066e64c08fed2d65445e4ca95717497b30fc9d30a55ae3')
+            '9e5274b0184249aaf1066e64c08fed2d65445e4ca95717497b30fc9d30a55ae3'
+            'a1c6aba9fd63b39d6c1d7d5ef187826369047d32c6894ca743adfd9f5ca1f59c')
 
 pkgver() {
   cd "${srcdir}/backends"
   git log -1 --format='%cd.%h' --date=short | tr -d -
+}
+
+prepare() {
+  patch -d "$srcdir/backends" -p1 -i "$srcdir/escl-fix-job.patch"
 }
 
 build() {

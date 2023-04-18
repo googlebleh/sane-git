@@ -1,0 +1,75 @@
+diff --git a/backend/escl/escl.h b/backend/escl/escl.h
+index f99bff915..c69051eb9 100644
+--- a/backend/escl/escl.h
++++ b/backend/escl/escl.h
+@@ -126,6 +126,7 @@ typedef struct capst
+     SANE_String_Const *DocumentFormats;
+     int DocumentFormatsSize;
+     int format_ext;
++    int format_noext;
+     SANE_Int *SupportedResolutions;
+     int SupportedResolutionsSize;
+     SANE_String_Const *SupportedIntents;
+diff --git a/backend/escl/escl_capabilities.c b/backend/escl/escl_capabilities.c
+index efbd54707..6fffdfb40 100644
+--- a/backend/escl/escl_capabilities.c
++++ b/backend/escl/escl_capabilities.c
+@@ -207,9 +207,11 @@ find_valor_of_array_variables(xmlNode *node, capabilities_t *scanner, int type)
+     }
+     else if (strcmp(name, "ContentType") == 0)
+         scanner->caps[type].ContentTypes = char_to_array(scanner->caps[type].ContentTypes, &scanner->caps[type].ContentTypesSize, (SANE_String_Const)xmlNodeGetContent(node), 0);
+-    else if (strcmp(name, "DocumentFormat") == 0)
++    else if (strcmp(name, "DocumentFormats") && strncmp(name, "DocumentFormat", 14) == 0)
+      {
+         int i = 0;
++        if (scanner->caps[type].format_ext == 1 || scanner->caps[type].format_noext == 1)
++	   goto fin_format_ext;
+         SANE_Bool have_jpeg = SANE_FALSE, have_png = SANE_FALSE, have_tiff = SANE_FALSE, have_pdf = SANE_FALSE;
+         scanner->caps[type].DocumentFormats = char_to_array(scanner->caps[type].DocumentFormats, &scanner->caps[type].DocumentFormatsSize, (SANE_String_Const)xmlNodeGetContent(node), 0);
+ 	scanner->caps[type].have_jpeg = -1;
+@@ -253,9 +255,12 @@ find_valor_of_array_variables(xmlNode *node, capabilities_t *scanner, int type)
+              scanner->caps[type].default_format = strdup("image/png");
+          else if (have_jpeg)
+              scanner->caps[type].default_format = strdup("image/jpeg");
++fin_format_ext:
++        if (strcmp(name, "DocumentFormatExt") == 0)
++           scanner->caps[type].format_ext = 1;
++	else
++           scanner->caps[type].format_noext = 1;
+      }
+-    else if (strcmp(name, "DocumentFormatExt") == 0)
+-        scanner->caps[type].format_ext = 1;
+     else if (strcmp(name, "Intent") == 0)
+         scanner->caps[type].SupportedIntents = char_to_array(scanner->caps[type].SupportedIntents, &scanner->caps[type].SupportedIntentsSize, (SANE_String_Const)xmlNodeGetContent(node), 0);
+     else if (strcmp(name, "XResolution") == 0)
+diff --git a/backend/escl/escl_newjob.c b/backend/escl/escl_newjob.c
+index e1b326fbd..fa30c9ab5 100644
+--- a/backend/escl/escl_newjob.c
++++ b/backend/escl/escl_newjob.c
+@@ -197,9 +197,23 @@ escl_newjob (capabilities_t *scanner, const ESCL_Device *device, SANE_Status *st
+     else
+     {
+         // For eSCL 2.1 and newer clients
+-        snprintf(f_ext_tmp, sizeof(f_ext_tmp),
+-			"   <scan:DocumentFormatExt>%s</scan:DocumentFormatExt>",
+-    			scanner->caps[scanner->source].default_format);
++    	if (scanner->caps[scanner->source].format_ext &&
++    	    scanner->caps[scanner->source].format_noext) {
++	    snprintf(f_ext_tmp, sizeof(f_ext_tmp),
++	             "   <scan:DocumentFormat>%s</scan:DocumentFormat>   <scan:DocumentFormatExt>%s</scan:DocumentFormatExt>",
++    		     scanner->caps[scanner->source].default_format,
++    		     scanner->caps[scanner->source].default_format);
++	}
++    	if (scanner->caps[scanner->source].format_ext) {
++	    snprintf(f_ext_tmp, sizeof(f_ext_tmp),
++	             "   <scan:DocumentFormat>%s</scan:DocumentFormat>",
++    		     scanner->caps[scanner->source].default_format);
++	}
++	else {
++	    snprintf(f_ext_tmp, sizeof(f_ext_tmp),
++	             "   <scan:DocumentFormatExt>%s</scan:DocumentFormatExt>",
++    		     scanner->caps[scanner->source].default_format);
++	}
+     }
+     format_ext = f_ext_tmp;
+ 
